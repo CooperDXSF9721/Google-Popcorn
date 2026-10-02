@@ -3,25 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Popcorn Survival Arena</title>
+    <title>Popcorn Survival - Real Multiplayer</title>
     <link rel="stylesheet" href="style.css">
+    <!-- PeerJS for P2P Networking -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-    <!-- Main Menu Overlay -->
+    <!-- Main Menu & Lobby Overlay -->
     <div id="ui-overlay" class="overlay">
         <div class="card">
             <h1>🍿 POPCORN SURVIVAL 🍿</h1>
-            <p class="subtitle">Don't get popped! Be the last kernel standing.</p>
+            <p class="subtitle">Online P2P Arena • Survival</p>
 
-            <div class="section">
-                <h3>1. Select Game Mode</h3>
+            <!-- Step 1: Online Setup -->
+            <div id="lobby-setup" class="section">
+                <h3>1. Online Lobby</h3>
+                <div class="input-group">
+                    <input type="text" id="player-name" placeholder="Kernel Name" maxlength="12" value="KernelPlayer">
+                    <input type="text" id="room-code" placeholder="Room Code (e.g. POP123)" maxlength="10">
+                </div>
                 <div class="btn-group">
-                    <button id="mode-solo" class="btn active">Solo Mode</button>
-                    <button id="mode-squad" class="btn">Squad Mode (Co-Op)</button>
+                    <button id="btn-create-room" class="btn btn-primary">Create Room</button>
+                    <button id="btn-join-room" class="btn">Join Room</button>
                 </div>
             </div>
 
+            <!-- Step 2: Waiting Room -->
+            <div id="waiting-room" class="section hidden">
+                <h3>Lobby: <span id="display-room-code" class="highlight">---</span></h3>
+                <p id="player-count-status">Waiting for players... (1 / 3 min)</p>
+                <div id="player-list-container"></div>
+            </div>
+
+            <!-- Step 3: Class Selection -->
             <div class="section">
                 <h3>2. Choose Kernel Class</h3>
                 <div class="class-grid">
@@ -34,13 +49,13 @@
                     <div class="class-card" data-class="shield">
                         <div class="class-icon">🛡️</div>
                         <h4>Shield Kernel</h4>
-                        <p>Creates a temporary forcefield deflecting all incoming attacks.</p>
+                        <p>Creates a forcefield that deflects incoming hazards.</p>
                         <span class="ability-tag">Space: Force Shield</span>
                     </div>
                     <div class="class-card" data-class="catch">
                         <div class="class-icon">🧲</div>
                         <h4>Catch & Throw</h4>
-                        <p>Catches incoming hazards and hurls them back at hazards/kernels.</p>
+                        <p>Catches incoming projectles and hurls them back.</p>
                         <span class="ability-tag">Space: Catch / Throw</span>
                     </div>
                 </div>
@@ -49,40 +64,35 @@
             <div class="section">
                 <h3>3. Controls</h3>
                 <p class="controls-info">
-                    <strong>WASD / Arrow Keys</strong> : Move Kernel<br>
-                    <strong>SPACEBAR</strong> : Activate Class Ability<br>
-                    <strong>E / Near Teammate</strong> : Revive Downed Teammate (Squad Mode)
+                    <strong>WASD / Arrows</strong> : Move Kernel<br>
+                    <strong>SPACEBAR</strong> : Ability <i>(No longer resets game)</i>
                 </p>
             </div>
 
-            <button id="start-btn" class="btn btn-primary btn-large">ENTER ARENA</button>
+            <button id="start-btn" class="btn btn-primary btn-large" disabled>WAITING FOR 3+ PLAYERS</button>
         </div>
     </div>
 
-    <!-- Game Over / Victory Overlay -->
+    <!-- Game Over Overlay -->
     <div id="gameover-overlay" class="overlay hidden">
         <div class="card">
             <h1 id="end-title">POPPED!</h1>
-            <p id="end-stats" class="subtitle">You survived 00:00</p>
-            <button id="restart-btn" class="btn btn-primary btn-large">PLAY AGAIN</button>
+            <p id="end-stats" class="subtitle">Survived until Level 1</p>
+            <button id="restart-btn" class="btn btn-primary btn-large">READY NEXT ROUND</button>
         </div>
     </div>
 
     <!-- HUD Overlay -->
     <div id="hud" class="hidden">
         <div class="hud-top">
-            <div id="player-hearts" class="hearts-container">
-                <span class="heart">❤️</span>
-                <span class="heart">❤️</span>
-            </div>
-            <div id="timer">00:00</div>
+            <div id="player-hearts" class="hearts-container">❤️ ❤️</div>
+            <div id="level-display">LEVEL 1: BUTTER SPRAY</div>
             <div id="ability-status" class="ability-hud">
-                <span id="ability-name">ABILITY</span>
+                <span id="ability-name">HEAL</span>
                 <div class="cooldown-bar"><div id="cooldown-fill"></div></div>
             </div>
         </div>
-        <div id="squad-hud" class="squad-container hidden"></div>
-        <div id="event-banner">WARNING: HEAT RISING</div>
+        <div id="event-banner">LEVEL UP!</div>
     </div>
 
     <!-- Canvas Container -->
