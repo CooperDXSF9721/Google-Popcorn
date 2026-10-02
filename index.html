@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popcorn Survival Arena</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Main Menu Overlay -->
+    <div id="ui-overlay" class="overlay">
+        <div class="card">
+            <h1>🍿 POPCORN SURVIVAL 🍿</h1>
+            <p class="subtitle">Don't get popped! Be the last kernel standing.</p>
+
+            <div class="section">
+                <h3>1. Select Game Mode</h3>
+                <div class="btn-group">
+                    <button id="mode-solo" class="btn active">Solo Mode</button>
+                    <button id="mode-squad" class="btn">Squad Mode (Co-Op)</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>2. Choose Kernel Class</h3>
+                <div class="class-grid">
+                    <div class="class-card selected" data-class="heal">
+                        <div class="class-icon">💚</div>
+                        <h4>Heal Kernel</h4>
+                        <p>Absorbs nearby small projectiles to recover lost hearts.</p>
+                        <span class="ability-tag">Space: Vacuum Heal</span>
+                    </div>
+                    <div class="class-card" data-class="shield">
+                        <div class="class-icon">🛡️</div>
+                        <h4>Shield Kernel</h4>
+                        <p>Creates a temporary forcefield deflecting all incoming attacks.</p>
+                        <span class="ability-tag">Space: Force Shield</span>
+                    </div>
+                    <div class="class-card" data-class="catch">
+                        <div class="class-icon">🧲</div>
+                        <h4>Catch & Throw</h4>
+                        <p>Catches incoming hazards and hurls them back at hazards/kernels.</p>
+                        <span class="ability-tag">Space: Catch / Throw</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>3. Controls</h3>
+                <p class="controls-info">
+                    <strong>WASD / Arrow Keys</strong> : Move Kernel<br>
+                    <strong>SPACEBAR</strong> : Activate Class Ability<br>
+                    <strong>E / Near Teammate</strong> : Revive Downed Teammate (Squad Mode)
+                </p>
+            </div>
+
+            <button id="start-btn" class="btn btn-primary btn-large">ENTER ARENA</button>
+        </div>
+    </div>
+
+    <!-- Game Over / Victory Overlay -->
+    <div id="gameover-overlay" class="overlay hidden">
+        <div class="card">
+            <h1 id="end-title">POPPED!</h1>
+            <p id="end-stats" class="subtitle">You survived 00:00</p>
+            <button id="restart-btn" class="btn btn-primary btn-large">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div id="player-hearts" class="hearts-container">
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+            </div>
+            <div id="timer">00:00</div>
+            <div id="ability-status" class="ability-hud">
+                <span id="ability-name">ABILITY</span>
+                <div class="cooldown-bar"><div id="cooldown-fill"></div></div>
+            </div>
+        </div>
+        <div id="squad-hud" class="squad-container hidden"></div>
+        <div id="event-banner">WARNING: HEAT RISING</div>
+    </div>
+
+    <!-- Canvas Container -->
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
