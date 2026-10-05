@@ -3,103 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Popcorn Kernel Survival</title>
+    <title>Butter Ball Wave Launcher</title>
     <link rel="stylesheet" href="style.css">
-    <!-- PeerJS for Real P2P Multiplayer -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
-
-    <!-- Main Menu & Lobby Overlay -->
-    <div id="ui-overlay" class="overlay">
-        <div class="card">
-            <h1>🍿 POPCORN SURVIVAL 🍿</h1>
-            <p class="subtitle">Online Multiplayer Arena</p>
-
-            <!-- Online Setup -->
-            <div id="lobby-setup" class="section">
-                <h3>1. Online Lobby</h3>
-                <div class="input-group">
-                    <input type="text" id="player-name" placeholder="Kernel Name" maxlength="12" value="KernelPlayer">
-                    <input type="text" id="room-code" placeholder="Room Code (e.g. POP123)" maxlength="10">
-                </div>
-                <div class="btn-group">
-                    <button id="btn-create-room" class="btn btn-primary">Create Room</button>
-                    <button id="btn-join-room" class="btn">Join Room</button>
-                </div>
-            </div>
-
-            <!-- Waiting Room -->
-            <div id="waiting-room" class="section hidden">
-                <h3>Room Code: <span id="display-room-code" class="highlight">---</span></h3>
-                <p id="player-count-status">Waiting for players... (1 / 3 minimum)</p>
-                <div id="player-list-container"></div>
-            </div>
-
-            <!-- Class Selection -->
-            <div class="section">
-                <h3>2. Choose Kernel Class</h3>
-                <div class="class-grid">
-                    <div class="class-card selected" data-class="heal">
-                        <div class="class-icon">💚</div>
-                        <h4>Heal Kernel</h4>
-                        <p>Absorbs nearby small hazards to restore hearts.</p>
-                        <span class="ability-tag">Space: Vacuum Heal</span>
-                    </div>
-                    <div class="class-card" data-class="shield">
-                        <div class="class-icon">🛡️</div>
-                        <h4>Shield Kernel</h4>
-                        <p>Creates a temporary forcefield to block hazards.</p>
-                        <span class="ability-tag">Space: Force Shield</span>
-                    </div>
-                    <div class="class-card" data-class="catch">
-                        <div class="class-icon">🧲</div>
-                        <h4>Catch & Throw</h4>
-                        <p>Catches incoming hazards and throws them back.</p>
-                        <span class="ability-tag">Space: Catch / Throw</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>3. Controls</h3>
-                <p class="controls-info">
-                    <strong>WASD / Arrow Keys</strong> : Move Kernel<br>
-                    <strong>SPACEBAR</strong> : Class Ability
-                </p>
-            </div>
-
-            <button id="start-btn" class="btn btn-primary btn-large" disabled>WAITING FOR 3+ PLAYERS</button>
-        </div>
-    </div>
-
-    <!-- Game Over Overlay -->
-    <div id="gameover-overlay" class="overlay hidden">
-        <div class="card">
-            <h1 id="end-title">POPPED!</h1>
-            <p id="end-stats" class="subtitle">Survived until Level 1</p>
-            <button id="restart-btn" class="btn btn-primary btn-large">READY NEXT ROUND</button>
-        </div>
-    </div>
-
-    <!-- HUD Overlay -->
-    <div id="hud" class="hidden">
-        <div class="hud-top">
-            <div id="player-hearts" class="hearts-container">❤️ ❤️</div>
-            <div id="level-display">LEVEL 1: BUTTER STICK</div>
-            <div id="ability-status" class="ability-hud">
-                <span id="ability-name">HEAL</span>
-                <div class="cooldown-bar"><div id="cooldown-fill"></div></div>
-            </div>
-        </div>
-        <div id="event-banner">LEVEL UP!</div>
-    </div>
-
-    <!-- Canvas Container -->
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+        <div id="ui-overlay">
+            <h1>Butter Ball Wave Test</h1>
+            <p>Click or press <strong>SPACE</strong> to fire a directional wave burst.</p>
+            <div id="controls">
+                <label>Arc Angle: <span id="arcVal">35</span>°</label>
+                <input type="range" id="arcSlider" min="30" max="45" value="35">
+                
+                <label>Balls per Wave: <span id="countVal">8</span></label>
+                <input type="range" id="countSlider" min="3" max="20" value="8">
+            </div>
+        </div>
     </div>
-
     <script src="game.js"></script>
 </body>
 </html>
