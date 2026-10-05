@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Popcorn Survival - Real Multiplayer</title>
+    <title>Popcorn Kernel Survival</title>
     <link rel="stylesheet" href="style.css">
-    <!-- PeerJS for P2P Networking -->
+    <!-- PeerJS for Real P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -14,9 +14,9 @@
     <div id="ui-overlay" class="overlay">
         <div class="card">
             <h1>🍿 POPCORN SURVIVAL 🍿</h1>
-            <p class="subtitle">Online P2P Arena • Survival</p>
+            <p class="subtitle">Online Multiplayer Arena</p>
 
-            <!-- Step 1: Online Setup -->
+            <!-- Online Setup -->
             <div id="lobby-setup" class="section">
                 <h3>1. Online Lobby</h3>
                 <div class="input-group">
@@ -29,33 +29,33 @@
                 </div>
             </div>
 
-            <!-- Step 2: Waiting Room -->
+            <!-- Waiting Room -->
             <div id="waiting-room" class="section hidden">
-                <h3>Lobby: <span id="display-room-code" class="highlight">---</span></h3>
-                <p id="player-count-status">Waiting for players... (1 / 3 min)</p>
+                <h3>Room Code: <span id="display-room-code" class="highlight">---</span></h3>
+                <p id="player-count-status">Waiting for players... (1 / 3 minimum)</p>
                 <div id="player-list-container"></div>
             </div>
 
-            <!-- Step 3: Class Selection -->
+            <!-- Class Selection -->
             <div class="section">
                 <h3>2. Choose Kernel Class</h3>
                 <div class="class-grid">
                     <div class="class-card selected" data-class="heal">
                         <div class="class-icon">💚</div>
                         <h4>Heal Kernel</h4>
-                        <p>Absorbs nearby small projectiles to recover lost hearts.</p>
+                        <p>Absorbs nearby small hazards to restore hearts.</p>
                         <span class="ability-tag">Space: Vacuum Heal</span>
                     </div>
                     <div class="class-card" data-class="shield">
                         <div class="class-icon">🛡️</div>
                         <h4>Shield Kernel</h4>
-                        <p>Creates a forcefield that deflects incoming hazards.</p>
+                        <p>Creates a temporary forcefield to block hazards.</p>
                         <span class="ability-tag">Space: Force Shield</span>
                     </div>
                     <div class="class-card" data-class="catch">
                         <div class="class-icon">🧲</div>
                         <h4>Catch & Throw</h4>
-                        <p>Catches incoming projectles and hurls them back.</p>
+                        <p>Catches incoming hazards and throws them back.</p>
                         <span class="ability-tag">Space: Catch / Throw</span>
                     </div>
                 </div>
@@ -64,8 +64,8 @@
             <div class="section">
                 <h3>3. Controls</h3>
                 <p class="controls-info">
-                    <strong>WASD / Arrows</strong> : Move Kernel<br>
-                    <strong>SPACEBAR</strong> : Ability <i>(No longer resets game)</i>
+                    <strong>WASD / Arrow Keys</strong> : Move Kernel<br>
+                    <strong>SPACEBAR</strong> : Class Ability
                 </p>
             </div>
 
@@ -86,7 +86,7 @@
     <div id="hud" class="hidden">
         <div class="hud-top">
             <div id="player-hearts" class="hearts-container">❤️ ❤️</div>
-            <div id="level-display">LEVEL 1: BUTTER SPRAY</div>
+            <div id="level-display">LEVEL 1: BUTTER STICK</div>
             <div id="ability-status" class="ability-hud">
                 <span id="ability-name">HEAL</span>
                 <div class="cooldown-bar"><div id="cooldown-fill"></div></div>
