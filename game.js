@@ -1,24 +1,35 @@
-// Setup Canvas
+// Setup Canvas and Fullscreen Resolution
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const ARENA_RADIUS = 350;
-canvas.width = ARENA_RADIUS * 2 + 40;
-canvas.height = ARENA_RADIUS * 2 + 40;
-const CENTER = { x: canvas.width / 2, y: canvas.height / 2 };
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Map & Camera Dimensions
+const MAP_RADIUS = 900; // Wider than the screen
+const CENTER = { x: 0, y: 0 };
+let camera = { x: 0, y: 0 };
 
 // Game State
 let gameState = 'MENU';
 let peer = null;
-let roomConnections = []; // Host list of player connections
-let hostConn = null;      // Client connection to Host
+let roomConnections = [];
+let hostConn = null;
 let isHost = false;
 let myPlayerId = null;
 let mySelectedClass = 'heal';
 
 let currentLevel = 1;
 let levelTimer = 0;
-let levelDuration = 25; // 25 seconds per level
+let levelDuration = 30; // 30 seconds per level
+
+// Interval Attack Timers
+let attackCycleTimer = 0;
+let isAttackingPhase = false;
 
 // Entities
 let playerStates = {}; 
@@ -26,10 +37,9 @@ let hazards = [];
 let lingeringFires = [];
 let lightningStrikes = [];
 
-// Input Management
+// Input Management (Prevents spacebar from scrolling or resetting)
 const keys = {};
 window.addEventListener('keydown', e => {
-    // PREVENT SPACEBAR FROM SCROLLING OR TRIGGERING RESTART ACCIDENTALLY
     if (e.code === 'Space') e.preventDefault();
     keys[e.code] = true;
 });
@@ -38,7 +48,7 @@ window.addEventListener('keyup', e => {
     keys[e.code] = false;
 });
 
-// UI Bindings
+// UI Elements
 const uiOverlay = document.getElementById('ui-overlay');
 const gameoverOverlay = document.getElementById('gameover-overlay');
 const hud = document.getElementById('hud');
@@ -56,7 +66,7 @@ document.querySelectorAll('.class-card').forEach(card => {
     };
 });
 
-// Netcode Setup (PeerJS)
+// P2P Networking
 document.getElementById('btn-create-room').onclick = () => {
     const code = 'POP-' + Math.floor(1000 + Math.random() * 9000);
     initPeer(code, true);
@@ -124,8 +134,8 @@ function registerPlayer(id, name, cls) {
         id: id,
         name: name || 'Kernel',
         class: cls,
-        x: CENTER.x + (Math.random() - 0.5) * 200,
-        y: CENTER.y + (Math.random() - 0.5) * 200,
+        x: CENTER.x + (Math.random() - 0.5) * 300,
+        y: CENTER.y + (Math.random() - 0.5) * 300,
         hearts: 2,
         isDead: false,
         cooldown: 0,
@@ -149,7 +159,6 @@ function updateLobbyStatus() {
     const count = Object.keys(playerStates).length;
     updateLobbyStatusUI(count);
     
-    // Broadcast lobby status
     roomConnections.forEach(c => c.send({
         type: 'LOBBY_UPDATE',
         players: playerStates,
@@ -182,7 +191,7 @@ function triggerAbility(player) {
     if (player.class === 'heal') {
         hazards = hazards.filter(h => {
             let d = Math.hypot(h.x - player.x, h.y - player.y);
-            if (d < 100) return false;
+            if (d < 120) return false;
             return true;
         });
         player.hearts = Math.min(2, player.hearts + 1);
@@ -194,21 +203,21 @@ function triggerAbility(player) {
         player.cooldown = 350;
 
     } else if (player.class === 'catch') {
-        let caught = hazards.find(h => Math.hypot(h.x - player.x, h.y - player.y) < 80);
+        let caught = hazards.find(h => Math.hypot(h.x - player.x, h.y - player.y) < 90);
         if (caught) {
             hazards.splice(hazards.indexOf(caught), 1);
             let angle = Math.atan2(CENTER.y - player.y, CENTER.x - player.x);
             hazards.push({
                 x: player.x, y: player.y,
-                vx: Math.cos(angle) * 7, vy: Math.sin(angle) * 7,
-                radius: 12, color: '#ff0055', type: 'reflected', life: 180
+                vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8,
+                radius: 10, color: '#ff0055', type: 'reflected', life: 180
             });
             player.cooldown = 200;
         }
     }
 }
 
-// Game Engines
+// Game Loop Setup
 function startGameHost() {
     gameState = 'PLAYING';
     uiOverlay.classList.add('hidden');
@@ -225,60 +234,69 @@ function startGameClient() {
     requestAnimationFrame(clientLoop);
 }
 
-// Host Main Processing Loop
+// Host Engine Loop
 let rotAngle = 0;
 function hostLoop() {
     if (gameState !== 'PLAYING') return;
 
     levelTimer += 1 / 60;
-    rotAngle += 0.02;
+    attackCycleTimer += 1 / 60;
+    rotAngle += 0.015;
 
-    // Check Level Progression
+    // Progression
     if (levelTimer > levelDuration && currentLevel < 4) {
         currentLevel++;
         levelTimer = 0;
         showBanner(`LEVEL ${currentLevel} ENTERED!`);
     }
 
-    // Process Player Movement Inputs
+    // Interval Control (4 seconds Attack Burst, 2.5 seconds Rest/Cooldown)
+    if (attackCycleTimer % 6.5 < 4.0) {
+        isAttackingPhase = true;
+    } else {
+        isAttackingPhase = false;
+    }
+
+    // Process Movement Inputs
     Object.values(playerStates).forEach(p => {
         if (p.isDead) return;
         
         let inp = (p.id === myPlayerId) ? readLocalInputs() : p.inputs;
         if (inp) {
-            let spd = 2.5; // Slower, precision-focused movement speed
+            let spd = 3.2; // Smooth movement speed
             if (inp.up) p.y -= spd;
             if (inp.down) p.y += spd;
             if (inp.left) p.x -= spd;
             if (inp.right) p.x += spd;
 
-            // Boundaries
+            // Map Boundary Constraints
             let dist = Math.hypot(p.x - CENTER.x, p.y - CENTER.y);
-            if (dist > ARENA_RADIUS - 16) {
+            if (dist > MAP_RADIUS - 18) {
                 let a = Math.atan2(p.y - CENTER.y, p.x - CENTER.x);
-                p.x = CENTER.x + Math.cos(a) * (ARENA_RADIUS - 16);
-                p.y = CENTER.y + Math.sin(a) * (ARENA_RADIUS - 16);
+                p.x = CENTER.x + Math.cos(a) * (MAP_RADIUS - 18);
+                p.y = CENTER.y + Math.sin(a) * (MAP_RADIUS - 18);
             }
         }
         if (p.cooldown > 0) p.cooldown--;
     });
 
-    // Check local Space ability activation
     if (keys['Space']) {
         triggerAbility(playerStates[myPlayerId]);
-        keys['Space'] = false; // Prevent hold reset
+        keys['Space'] = false;
     }
 
-    // LEVEL ATTACK PATTERNS
-    spawnLevelAttacks();
+    // Attack Patterns
+    if (isAttackingPhase) {
+        spawnLevelAttacks();
+    }
 
-    // Hazard Collisions
+    // Update Hazards
     hazards = hazards.filter(h => {
         h.x += h.vx || 0;
         h.y += h.vy || 0;
         if (h.life !== undefined) h.life--;
 
-        // Check player hits
+        // Collision detection
         Object.values(playerStates).forEach(p => {
             if (p.isDead) return;
             if (Math.hypot(p.x - h.x, p.y - h.y) < h.radius + 14) {
@@ -292,7 +310,7 @@ function hostLoop() {
         return h.life === undefined || h.life > 0;
     });
 
-    // Lingering Fire Collisions
+    // Update Lingering Fires
     lingeringFires = lingeringFires.filter(f => {
         f.life--;
         Object.values(playerStates).forEach(p => {
@@ -306,6 +324,22 @@ function hostLoop() {
         return f.life > 0;
     });
 
+    // Update Lightning Strikes
+    lightningStrikes = lightningStrikes.filter(l => {
+        l.warmup--;
+        if (l.warmup <= 0 && l.warmup > -15) { // Active strike window
+            Object.values(playerStates).forEach(p => {
+                if (!p.isDead && Math.abs(p.x - l.x) < 25) {
+                    if (!p.shieldActive) {
+                        p.hearts--;
+                        if (p.hearts <= 0) p.isDead = true;
+                    }
+                }
+            });
+        }
+        return l.warmup > -20;
+    });
+
     // Broadcast Game State to Clients
     roomConnections.forEach(c => c.send({
         type: 'GAME_SYNC',
@@ -316,6 +350,7 @@ function hostLoop() {
         currentLevel: currentLevel
     }));
 
+    updateCamera();
     renderCanvas();
     requestAnimationFrame(hostLoop);
 }
@@ -324,7 +359,6 @@ function hostLoop() {
 function clientLoop() {
     if (gameState !== 'PLAYING') return;
 
-    // Send local key state to Host
     if (hostConn) {
         hostConn.send({
             type: 'INPUT',
@@ -334,6 +368,7 @@ function clientLoop() {
         if (keys['Space']) keys['Space'] = false;
     }
 
+    updateCamera();
     renderCanvas();
     requestAnimationFrame(clientLoop);
 }
@@ -347,60 +382,74 @@ function readLocalInputs() {
     };
 }
 
-// Hazard Spawners
+// Interval Attack Spawner
 function spawnLevelAttacks() {
-    // Level 1: Butter Cannon
-    if (currentLevel >= 1 && Math.random() < 0.05) {
+    // Level 1: Butter Stick Boss Center Attack
+    if (currentLevel === 1 && Math.random() < 0.1) {
         let a = Math.random() * Math.PI * 2;
         hazards.push({
-            x: CENTER.x + Math.cos(a) * ARENA_RADIUS,
-            y: CENTER.y + Math.sin(a) * ARENA_RADIUS,
-            vx: -Math.cos(a) * 2.5, vy: -Math.sin(a) * 2.5,
-            radius: 12, color: '#ffb703', life: 300
+            x: CENTER.x, y: CENTER.y,
+            vx: Math.cos(a) * 3.5, vy: Math.sin(a) * 3.5,
+            radius: 5, color: '#ffb703', life: 280 // Smaller butter balls
         });
     }
 
-    // Level 2: Salt Shaker (Cubes + Salt Rain)
-    if (currentLevel >= 2) {
-        if (Math.random() < 0.03) {
+    // Level 2: Salt Shaker Boss Center
+    if (currentLevel === 2) {
+        if (Math.random() < 0.08) {
             let a = Math.random() * Math.PI * 2;
             hazards.push({
                 x: CENTER.x, y: CENTER.y,
-                vx: Math.cos(a) * 3, vy: Math.sin(a) * 3,
-                radius: 8, color: '#ffffff', life: 200
+                vx: Math.cos(a) * 4, vy: Math.sin(a) * 4,
+                radius: 6, color: '#ffffff', life: 220
             });
         }
-        if (Math.random() < 0.02) { // Salt Rain
+        if (Math.random() < 0.03) { // Raining Salt
             hazards.push({
-                x: CENTER.x + (Math.random() - 0.5) * ARENA_RADIUS * 1.6,
-                y: CENTER.y + (Math.random() - 0.5) * ARENA_RADIUS * 1.6,
-                vx: 0, vy: 0, radius: 14, color: 'rgba(255,255,255,0.8)', life: 60
+                x: CENTER.x + (Math.random() - 0.5) * MAP_RADIUS * 1.6,
+                y: CENTER.y + (Math.random() - 0.5) * MAP_RADIUS * 1.6,
+                vx: 0, vy: 0, radius: 10, color: 'rgba(255,255,255,0.8)', life: 80
             });
         }
     }
 
-    // Level 3: Fire Lines & Lingering Fireballs
-    if (currentLevel >= 3) {
-        if (Math.random() < 0.04) {
+    // Level 3: Fire Center Boss
+    if (currentLevel === 3) {
+        if (Math.random() < 0.05) {
             let a = Math.random() * Math.PI * 2;
-            let fx = CENTER.x + Math.cos(a) * (Math.random() * ARENA_RADIUS);
-            let fy = CENTER.y + Math.sin(a) * (Math.random() * ARENA_RADIUS);
-            lingeringFires.push({ x: fx, y: fy, radius: 18, life: 240 });
+            let fx = CENTER.x + Math.cos(a) * (Math.random() * MAP_RADIUS * 0.8);
+            let fy = CENTER.y + Math.sin(a) * (Math.random() * MAP_RADIUS * 0.8);
+            lingeringFires.push({ x: fx, y: fy, radius: 22, life: 200 });
         }
     }
 
-    // Level 4: Microwave Boss Attacks
-    if (currentLevel >= 4) {
-        if (Math.random() < 0.02) { // Ring waves
-            for (let i = 0; i < 12; i++) {
-                let a = rotAngle + (Math.PI * 2 / 12) * i;
+    // Level 4: Microwave Final Boss
+    if (currentLevel === 4) {
+        if (Math.random() < 0.04) { // Rotating Ring Attack
+            for (let i = 0; i < 8; i++) {
+                let a = rotAngle + (Math.PI * 2 / 8) * i;
                 hazards.push({
                     x: CENTER.x, y: CENTER.y,
-                    vx: Math.cos(a) * 3.5, vy: Math.sin(a) * 3.5,
-                    radius: 7, color: '#48cae4', life: 180
+                    vx: Math.cos(a) * 4, vy: Math.sin(a) * 4,
+                    radius: 6, color: '#48cae4', life: 200
                 });
             }
         }
+        if (Math.random() < 0.02) { // Screen Lightning Strikes
+            lightningStrikes.push({
+                x: CENTER.x + (Math.random() - 0.5) * MAP_RADIUS * 1.5,
+                warmup: 45
+            });
+        }
+    }
+}
+
+// Camera Tracking Logic
+function updateCamera() {
+    if (playerStates[myPlayerId]) {
+        let p = playerStates[myPlayerId];
+        camera.x = p.x - canvas.width / 2;
+        camera.y = p.y - canvas.height / 2;
     }
 }
 
@@ -410,30 +459,47 @@ function showBanner(txt) {
     setTimeout(() => eventBanner.classList.remove('visible'), 2500);
 }
 
-// Rendering Logic
+// World Rendering & Camera Transformations
 function renderCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Arena Background
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+
+    // Arena Floor
     ctx.beginPath();
-    ctx.arc(CENTER.x, CENTER.y, ARENA_RADIUS, 0, Math.PI * 2);
+    ctx.arc(CENTER.x, CENTER.y, MAP_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = '#12131c';
     ctx.fill();
     ctx.strokeStyle = currentLevel === 4 ? '#e63946' : '#ffb703';
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 8;
     ctx.stroke();
 
-    // Rotating Fire Lines for Level 3 & 4 Boss
+    // Render Boss in Center
+    drawCenterBoss();
+
+    // Level 3 & 4 Rotating Beams
     if (currentLevel >= 3) {
         ctx.save();
         ctx.strokeStyle = 'rgba(230, 57, 70, 0.4)';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 14;
         ctx.beginPath();
-        ctx.moveTo(CENTER.x + Math.cos(rotAngle) * ARENA_RADIUS, CENTER.y + Math.sin(rotAngle) * ARENA_RADIUS);
-        ctx.lineTo(CENTER.x - Math.cos(rotAngle) * ARENA_RADIUS, CENTER.y - Math.sin(rotAngle) * ARENA_RADIUS);
+        ctx.moveTo(CENTER.x + Math.cos(rotAngle) * MAP_RADIUS, CENTER.y + Math.sin(rotAngle) * MAP_RADIUS);
+        ctx.lineTo(CENTER.x - Math.cos(rotAngle) * MAP_RADIUS, CENTER.y - Math.sin(rotAngle) * MAP_RADIUS);
         ctx.stroke();
         ctx.restore();
     }
+
+    // Lightning Strikes
+    lightningStrikes.forEach(l => {
+        if (l.warmup > 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillRect(l.x - 15, CENTER.y - MAP_RADIUS, 30, MAP_RADIUS * 2);
+        } else {
+            ctx.fillStyle = '#48cae4';
+            ctx.fillRect(l.x - 20, CENTER.y - MAP_RADIUS, 40, MAP_RADIUS * 2);
+        }
+    });
 
     // Lingering Fires
     lingeringFires.forEach(f => {
@@ -473,21 +539,66 @@ function renderCanvas() {
         ctx.strokeStyle = '#333';
         ctx.stroke();
 
-        // Name
+        // Name Tag
         ctx.fillStyle = '#fff';
-        ctx.font = '11px sans-serif';
+        ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(p.name, 0, 26);
 
         ctx.restore();
     });
 
-    // Update Level Hud text
-    const levelNames = ["1: BUTTER SPRAY", "2: SALT SHAKER", "3: FIRE LINES", "4: MICROWAVE BOSS"];
+    ctx.restore();
+
+    // Render Static HUD
+    const levelNames = ["1: BUTTER STICK", "2: SALT SHAKER", "3: FIRE ENGINE", "4: MICROWAVE BOSS"];
     levelDisplay.innerText = "LEVEL " + levelNames[currentLevel - 1];
 
     if (playerStates[myPlayerId]) {
         let p = playerStates[myPlayerId];
         document.getElementById('player-hearts').innerText = p.hearts === 2 ? "❤️ ❤️" : (p.hearts === 1 ? "❤️ 🖤" : "🖤 🖤");
     }
+}
+
+// Center Boss Render Models
+function drawCenterBoss() {
+    ctx.save();
+    ctx.translate(CENTER.x, CENTER.y);
+
+    if (currentLevel === 1) {
+        // Stick of Butter
+        ctx.fillStyle = '#ffee93';
+        ctx.fillRect(-25, -45, 50, 90);
+        ctx.strokeStyle = '#ffb703';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-25, -45, 50, 90);
+    } else if (currentLevel === 2) {
+        // Salt Shaker
+        ctx.fillStyle = '#e0e0e0';
+        ctx.beginPath();
+        ctx.arc(0, 0, 35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.fillText("SALT", -12, 4);
+    } else if (currentLevel === 3) {
+        // Fire Boss
+        ctx.fillStyle = '#d62828';
+        ctx.beginPath();
+        ctx.arc(0, 0, 45, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fcbf49';
+        ctx.beginPath();
+        ctx.arc(0, 0, 25, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (currentLevel === 4) {
+        // Microwave Boss
+        ctx.fillStyle = '#2b2d42';
+        ctx.fillRect(-50, -35, 100, 70);
+        ctx.fillStyle = '#8d99ae';
+        ctx.fillRect(-40, -25, 55, 50);
+        ctx.fillStyle = '#48cae4';
+        ctx.fillRect(20, -25, 20, 50);
+    }
+
+    ctx.restore();
 }
